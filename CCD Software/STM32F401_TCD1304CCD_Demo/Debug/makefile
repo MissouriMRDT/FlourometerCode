@@ -79,8 +79,8 @@ all: main-build
 main-build: STM32F401_TCD1304CCD_Demo.elf secondary-outputs
 
 # Tool invocations
-STM32F401_TCD1304CCD_Demo.elf STM32F401_TCD1304CCD_Demo.map: $(OBJS) $(USER_OBJS) C:\Users\jesse\STM32CubeIDE\workspace_1.11.2\STM32F401_TCD1304CCD_Demo\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "STM32F401_TCD1304CCD_Demo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\jesse\STM32CubeIDE\workspace_1.11.2\STM32F401_TCD1304CCD_Demo\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F401_TCD1304CCD_Demo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+STM32F401_TCD1304CCD_Demo.elf STM32F401_TCD1304CCD_Demo.map: $(OBJS) $(USER_OBJS) C:\GitHub\Fluorometer_Software\CCD\ Software\STM32F401_TCD1304CCD_Demo\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "STM32F401_TCD1304CCD_Demo.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\GitHub\Fluorometer_Software\CCD Software\STM32F401_TCD1304CCD_Demo\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F401_TCD1304CCD_Demo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
