@@ -129,9 +129,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  //(uint8_t *)
+	  CDC_Transmit_FS(data, strlen (data));
+	  HAL_Delay (1000);
 
-	  /*CDC_Transmit_FS((uint8_t *) data, strlen (data));
-	  HAL_Delay (1000);*/
 	  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) CCDPixelBuffer, CCDBuffer);
 
   }
