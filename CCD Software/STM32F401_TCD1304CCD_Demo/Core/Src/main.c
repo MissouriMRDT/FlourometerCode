@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,11 +48,12 @@ TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 
 uint8_t data[13] = "Hello World!\n";
-uint32_t ccdData;
+uint16_t ccdData = 32;
 
 /* USER CODE END PV */
 
@@ -67,7 +68,7 @@ static void MX_TIM5_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+void DMATransferComplete(DMA_HandleTypeDef *hdma);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -84,7 +85,10 @@ volatile uint16_t CCDPixelBuffer[CCDBuffer];
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	char msg[] = "Long boat hlystone pirate log driver hulk nipperkin cog." \
+				 "Bucacaneer me lass poop deck spyglass maroon jib spike. Come" \
+				 "about maroon skysail Corsair bilge water Arr long clothes " \
+				 "transom.\r\n";
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -124,22 +128,30 @@ int main(void)
 
   HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3); //PA2 - SH
 
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)CCDPixelBuffer, CCDBuffer);
+
+  //HAL_DMA_RegisterCallback(&hdma_usart1_tx, HAL_DMA_XFER_CPLT_CB_ID, &DMATransferComplete);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	//huart1.Instance->CR3 &= ~USART_CR3_DMAT;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 	  //(uint8_t *)
-	  HAL_ADC_Start_DMA(&hadc1, &CCDPixelBuffer, sizeof(CCDPixelBuffer));
+	  //HAL_ADC_Start_DMA(&hadc1, &CCDPixelBuffer, sizeof(CCDPixelBuffer));
 	  //hadc1->ADC_DMAConvCplt(hdma_adc1);
 
 	  //ccdData = HAL_ADC_GetValue(&hadc1);
-	  //HAL_UART_Transmit(&huart1, &ccdData, sizeof(ccdData), 100);
+	  //HAL_UART_Transmit(&huart1, &ccdData, sizeof(ccdData), 1000);
 	  //HAL_Delay (1000);
+
+	  //HAL_UART_Transmit_DMA(&huart1, &CCDPixelBuffer, CCDBuffer);
 
   }
   /* USER CODE END 3 */
@@ -217,11 +229,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ScanConvMode = DISABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.ExternalTrigConvEdge = ADC_SOFTWARE_START;
+  //hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T4_CC4;
+  //hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -237,6 +249,8 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
+
+
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
@@ -472,15 +486,9 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sConfigOC.Pulse = 336-1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
@@ -508,7 +516,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -538,6 +546,9 @@ static void MX_DMA_Init(void)
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
 }
 
@@ -561,11 +572,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_TxHalfCpltCallback(UART_HandleTypeDef* huart)
+{
+
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart)
+{
+
+}
+
+// Called when first half of buffer is filled
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	//HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+}
+
+// Called when buffer is completely filled
  void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
  {
+	 //huart1.Instance->CR3 |= USART_CR3_DMAT;
+	 //HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_PIN, GPIO_PIN_RESET);
 	 //CCDPixelBuffer
-	 HAL_UART_Transmit(&hadc, &CCDPixelBuffer, sizeof(CCDPixelBuffer), 100);
+	 //uint16_t tempBuffer[CCDBuffer] = CCDPixelBuffer;
 
+	 //HAL_UART_Transmit_DMA(&huart1, (uint8_t *)CCDPixelBuffer, CCDBuffer);
+	 HAL_UART_Transmit_DMA(&huart1, &CCDPixelBuffer[50], sizeof(CCDPixelBuffer[50]));
  }
 /* USER CODE END 4 */
 
