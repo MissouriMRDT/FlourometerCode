@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <avr/io.h>
+#include <avr/interrupt.h>
 
 #define CCD_IN 0
 #define SH 2
@@ -21,13 +23,14 @@ void setup() {
   cli();
 
   configureGPT1();
-  
+  TimerInt_Init();
+  //attachInterruptVector(hardware->irq, hardware->irq_handler);
 }
 
 
 void loop() {
   //readCCD();
-  Serial.println(GPT1_CNT);
+  Serial.println(TMR1_CNTR0);
   /*
   for(int j = 0; j < 3648; j++)
     Serial.println(ccd_buff[j]);
@@ -127,4 +130,20 @@ void configureGPT1() {
 
   //      --Enable GPT1 interrupts--
   GPT1_IR &= 0b000000;
+
+  //*(portConfigRegister(25)) = 1;
+}
+
+/*ISR(TIMER0_COMPA_vect)
+{
+  
+}
+*/
+void TimerInt_Init()
+{
+  TMR1_CNTR0 = 0;            // Reset counter
+  
+  TMR1_SCTRL0 = 0X05;        // Enable output
+  TMR1_COMP10 = 1500-1;      // Store initial value to the duty-compare register
+  TMR1_CTRL0 = 0x3006;       // Run counter
 }
