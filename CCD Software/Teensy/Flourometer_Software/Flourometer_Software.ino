@@ -5,7 +5,7 @@
 #define CCD_IN 0
 #define SH 2
 #define ICG 3
-#define CLK_IN 4
+#define CLK_IN 7
 #define CLK_OUT 1
 
 uint16_t ccd_buff[3648];
@@ -15,41 +15,44 @@ int i = 0;
 void setup() {
   Serial.begin(9600);
   //analogWriteResolution(6);
-  //analogWriteFrequency(CLK_OUT, 2000000);
-  //analogWrite(CLK_OUT, 32);
+  analogWriteFrequency(CLK_OUT, 2000000);
+  analogWrite(CLK_OUT, 128);
+  analogWriteFrequency(ICG, 133.33333);
+  analogWrite(ICG, 0.3315);
+  analogWriteFrequency(SH, 133.33333);
+  analogWrite(SH, 0.00053);
   pinMode(CLK_IN, INPUT);
 
-  //attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
+  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
   cli();
 
-  configureGPT1();
-  TimerInt_Init();
+  //configureGPT1();
+  //TimerInt_Init();
   //attachInterruptVector(hardware->irq, hardware->irq_handler);
 }
 
-
 void loop() {
   //readCCD();
-  Serial.println(TMR1_CNTR0);
-  /*
+  //Serial.println(ccd_buff);
+  
   for(int j = 0; j < 3648; j++)
     Serial.println(ccd_buff[j]);
 
-  while(1);
-  */
+  //while(1);
 }
 
 void readCCD() {
-  while (digitalRead(CLK_IN));
+  while (digitalReadFast(CLK_IN));
   
-  digitalWrite(SH, LOW);
+  digitalWriteFast(SH, LOW);
   digitalWrite(ICG, HIGH);
   delayMicroseconds(1);
-  digitalWrite(SH, HIGH);
+  digitalWriteFast(SH, HIGH);
   delayMicroseconds(5);
   digitalWrite(ICG, LOW);
 
   i = 0;
+  
   sei();
   delay(8);
   cli();
