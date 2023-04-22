@@ -2,7 +2,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define CCD_IN 0
+#define CCD_IN A10
 #define SH 2
 #define ICG 3
 #define CLK_IN 7
@@ -15,13 +15,28 @@ int i = 0;
 void setup() {
   Serial.begin(9600);
   //analogWriteResolution(6);
+
+  pinMode(CLK_OUT, OUTPUT);
+  pinMode(CLK_IN, INPUT);
+
+  if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT) {
+    // Enable CPU Cycle count
+    ARM_DEMCR |= ARM_DEMCR_TRCENA;
+    ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
+  }
+
+  
+  //analogWriteResolution(12);
+  quadTimerFrequency(&IMXRT_TMR1, );
   analogWriteFrequency(CLK_OUT, 2000000);
   analogWrite(CLK_OUT, 128);
+
+  /*
   analogWriteFrequency(ICG, 133.33333);
-  analogWrite(ICG, 0.3315);
-  analogWriteFrequency(SH, 133.33333);
-  analogWrite(SH, 0.00053);
-  pinMode(CLK_IN, INPUT);
+  analogWrite(ICG, 5.46);
+  analogWriteFrequency(SH, 100000);
+  analogWrite(SH, 1638);
+  */
 
   attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
   cli();
@@ -29,25 +44,36 @@ void setup() {
   //configureGPT1();
   //TimerInt_Init();
   //attachInterruptVector(hardware->irq, hardware->irq_handler);
+  
 }
 
 void loop() {
-  //readCCD();
+  // analogread takes about 2 us to complete.
+  // digitalRead takes about 800 ns to complete.
+  static uint32_t cntLast = ARM_DWT_CYCCNT;
+  uint32_t cnt = ARM_DWT_CYCCNT;
+  float ns = cnt * 1E9f/F_CPU;
+  Serial.printf("Cycles in analogRead %10u\tCYCCNT: %10u (%0.6g ns)\n", cnt - cntLast, cnt, ns);
+  cntLast = cnt;
+  analogRead(CLK_IN);
+  /*
+  readCCD();
   //Serial.println(ccd_buff);
   
   for(int j = 0; j < 3648; j++)
     Serial.println(ccd_buff[j]);
 
-  //while(1);
+  while(1);
+  */
 }
 
 void readCCD() {
-  while (digitalReadFast(CLK_IN));
+  while (digitalRead(CLK_IN));
   
-  digitalWriteFast(SH, LOW);
+  digitalWrite(SH, LOW);
   digitalWrite(ICG, HIGH);
   delayMicroseconds(1);
-  digitalWriteFast(SH, HIGH);
+  digitalWrite(SH, HIGH);
   delayMicroseconds(5);
   digitalWrite(ICG, LOW);
 
@@ -149,4 +175,9 @@ void TimerInt_Init()
   TMR1_SCTRL0 = 0X05;        // Enable output
   TMR1_COMP10 = 1500-1;      // Store initial value to the duty-compare register
   TMR1_CTRL0 = 0x3006;       // Run counter
+}
+
+void ADC_Config()
+{
+  
 }
