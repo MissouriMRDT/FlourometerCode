@@ -179,5 +179,21 @@ void TimerInt_Init()
 
 void ADC_Config()
 {
+  // ADC Configuration register
+
+  // Bit 16:      Disable Data Overwrite
+  // Bits 15-14:  Hardware average select (disabled because average select is disabled)
+  // Bit 13:      Hardware trigger selected
+  // Bits 12-11:  Select VREFH/VREFL for voltage reference
+  // Bit 10:      High Speed conversion selected
+  // Bits 9-8:    
+  ADC1_CFG = (0<<16) | (1<<13) | (0b00<<11) | (1<<10);
   
+  // Enable COCO interrupt
+  ADC1_HC0 |= (1<<7);
+
+  // Set input as ADC 1_IN0
+  ADC1_HC0 |= (0b00000<<0);
+
+  // Make sure to disable compare function and hardware average function
 }
