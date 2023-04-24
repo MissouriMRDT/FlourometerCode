@@ -50,12 +50,16 @@ void setup() {
 void loop() {
   // analogread takes about 2 us to complete.
   // digitalRead takes about 800 ns to complete.
+  /*
   static uint32_t cntLast = ARM_DWT_CYCCNT;
   uint32_t cnt = ARM_DWT_CYCCNT;
   float ns = cnt * 1E9f/F_CPU;
   Serial.printf("Cycles in analogRead %10u\tCYCCNT: %10u (%0.6g ns)\n", cnt - cntLast, cnt, ns);
   cntLast = cnt;
   analogRead(CLK_IN);
+  */
+  Serial.print(ADC1_R0);
+  Serial.println(TRIG0_RESULT_1_0);
   /*
   readCCD();
   //Serial.println(ccd_buff);
@@ -246,7 +250,7 @@ void ADC_ETC_Config()
   ADC_ETC_CTRL = (0<<30) | (0<<29) | (0b00000000<<16) | (0b000<<13)|(0<<12) | (0b000<<9)|(0<<8) | (0b00000001<<0);
 
   // --Trigger Control Register--
-  // Bit 16:      SYNC_MODE: Synchronization mode disabled
+  // Bit 16:      SYNC_MODE:     Synchronization mode disabled
   // Bits 14-12:  TRIG_PRIORITY: Set external trigger priority to 7
   // Bits 10-8:   TRIG_CHAIN:    Set trigger chain length to 1.
   // Bit 4:       TRIG_MODE:     Hardware trigger mode. Software trigger will be ignored.
@@ -259,4 +263,13 @@ void ADC_ETC_Config()
   ADC_ETC_TRIG0_COUNTER = (0b0000000000000000<<16) | (0b0000000000000000<<0);
 
   // --Trigger Chain 0/1 Register
+  // Bits 30-29:  IE1: Segment 1 done interrupt selected to no interrupt when finished
+  // Bit 28:      B2B1: Segment 1 B2B disabled
+  // Bits 27-20:  HWTS1: Segment 1 Hawrdware trigger selection. No trigger selected.
+  // Bits 19-16:  CSEL1: ADC Channel 0 selected.
+  // Bits 14-13:  IE0: Segment 0 done interrupt selected to no interrupt when finished.
+  // Bit 12:      B2B0: Segment 0 B2B disabled
+  // Bits 11-4:   HWTS0: Segment 0 Hardware trigger selection selected to ADC TRIG0.
+  // Bits 3-0:    CSEL0: ADC Channel Selection.
+  ADC_ETC_TRIG0_CHAIN_1_0 = (0b00<<29) | (0<<28) | (0b00000000<<20) | (0b0000<<16) | (0b00<<13) | (0<<12) | (0b00000001<<4) | (0b0000<<0);
 }
