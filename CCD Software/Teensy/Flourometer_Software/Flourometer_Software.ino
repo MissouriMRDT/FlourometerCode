@@ -27,7 +27,7 @@ void setup() {
 
   
   //analogWriteResolution(12);
-  quadTimerFrequency(&IMXRT_TMR1, );
+  //quadTimerFrequency(&IMXRT_TMR1, );
   analogWriteFrequency(CLK_OUT, 2000000);
   analogWrite(CLK_OUT, 128);
 
@@ -179,21 +179,84 @@ void TimerInt_Init()
 
 void ADC_Config()
 {
-  // ADC Configuration register
+  // --ADC Configuration register--
 
   // Bit 16:      Disable Data Overwrite
-  // Bits 15-14:  Hardware average select (disabled because average select is disabled)
+  // Bits 15-14:  Hardware average select (disabled because averaging is disabled)
   // Bit 13:      Hardware trigger selected
   // Bits 12-11:  Select VREFH/VREFL for voltage reference
   // Bit 10:      High Speed conversion selected
-  // Bits 9-8:    
-  ADC1_CFG = (0<<16) | (1<<13) | (0b00<<11) | (1<<10);
+  // Bits 9-8:    ADSTS; total sample time set to 3 ADC clock cycles with Long sample time disabled
+  // Bit 7:       ADLPC; Low-power mode disabled
+  // Bits 6-5:    ADIV; Input clock not divided
+  // Bit 4:       ADLSMP; Set to short sample mode
+  // Bits 3-2:    MODE; ADC Resolution set to 8-bit conversion
+  // Bits 1-0:    ADICLK; IPG clock divided by 1 selected as input clock source to generate ADCK
+  ADC1_CFG = (0<<16) | (1<<13) | (0b00<<11) | (1<<10) | (0b00<<8) | (0<<7) | (0b00<<5) | (0b00<<2) | (0b00<<0);
+
+  // --General Control register--
+
+  // Bit 7:       CAL; Calibration bit begins calibration when set
+  // Bit 6:       ADCO; Continuous Conversion disabled
+  // Bit 5:       AVGE; Hardware average disabled
+  // Bit 4:       ACFE; Compare Function disabled
+  // Bit 3:       ACFGT; Compare Function Greater than Disabled
+  // Bit 2:       ACREN; Compare function range disabled
+  // Bit 1:       DMAEN: DMA disabled
+  // Bit 0:       ADACKEN: Disable asynchronous clock output. Asynchronous clock only enabled if selected by ADICLK and a conversion is active.
+  ADC1_GC = (0<<7) | (0<<6) | (0<<5) | (0<<4) | (0<<3) | (0<<2) | (0<<1) | (0<<0);
+
+  // --Trigger Control Register--
   
   // Enable COCO interrupt
   ADC1_HC0 |= (1<<7);
 
   // Set input as ADC 1_IN0
   ADC1_HC0 |= (0b00000<<0);
+}
 
-  // Make sure to disable compare function and hardware average function
+void ADC_ETC_Config()
+{
+  /* Initialization:
+   *  1. Configure the Global Control bits, include selecting DMA mode, 
+   *     enabling triggers which will be used, and setting pre-division factor.
+   *  2. Set DMA enable bits as needed.
+   *  3. Configure control bits for each enabled trigger, include enabling or 
+   *     disabling synchronization mode, assigning trigger priority, setting the 
+   *     length of trigger chain, selecting trigger mode and setting the initial 
+   *     and interval delay of this trigger.
+   *  4. According to the length of trigger chain, several segments of the chain 
+   *     should be configured. The configurations of each segment contain:
+   *      a. setting the DONE interrupt for this chain, enabling or disabling B2B mode;
+   *      b. selecting which trigger of ADC will be triggered, setting the ADC command.
+   */
+
+
+  // --Global Control Register--
+  // Bit 31:      SOFTRST: Software synchronous reset disabled (active high)
+  // Bit 30:      TSC_BYPASS: TSC Not bypassed. This should be bypassed to use ADC2
+  // Bit 29:      DMA_MODE_SEL: Trigger DMA_REQ with latched signal
+  // Bits 23-16:  PRE_DIVIDER: Pre-divider for trig delay and interval
+  // Bits 15-13:  EXT1_TRIG_PRIORITY: External TSC1 (touch source control) trigger priority (7 highest, 0 lowest). Set to 0.
+  // Bit 12:      EXT1_TRIG_ENABLE:   Disable external TSC1 trigger.
+  // Bits 11-9:   EXT0_TRIG_PRIORITY: External TSC0 trigger priority 0
+  // Bit 8:       EXT0_TRIG_ENABLE:   Disable external TSC0 trigger.
+  // Bits 7-0:    TRIG_ENABLE:        Enable external XBAR trigger0.
+  ADC_ETC_CTRL &= (0<<31);
+  ADC_ETC_CTRL = (0<<30) | (0<<29) | (0b00000000<<16) | (0b000<<13)|(0<<12) | (0b000<<9)|(0<<8) | (0b00000001<<0);
+
+  // --Trigger Control Register--
+  // Bit 16:      SYNC_MODE: Synchronization mode disabled
+  // Bits 14-12:  TRIG_PRIORITY: Set external trigger priority to 7
+  // Bits 10-8:   TRIG_CHAIN:    Set trigger chain length to 1.
+  // Bit 4:       TRIG_MODE:     Hardware trigger mode. Software trigger will be ignored.
+  // Bit 0:       SW_TRIG:       No software trigger even generated.
+  ADC_ETC_TRIG0_CTRL = (0<<16) | (0b111<<12) | (0b000<<8) | (0<<4) | (0<<0);
+
+  // --Trigger Counter Register--
+  // Bits 31-16:  SAMPLE_INTERVAL: TRIGGER sampling interval counter. When B2B is unset: Interval_delay = (SAMPLE_INTERVAL+1)*(PRE_DIVIDER+1)*ipg_clk
+  // Bits 15-0:   INIT_DELAY:      TRIGGER initial delay counter. Initial_delay = (INT_DELAY+1)*(PRE_DIVIDER+1)*ipg_clk
+  ADC_ETC_TRIG0_COUNTER = (0b0000000000000000<<16) | (0b0000000000000000<<0);
+
+  // --Trigger Chain 0/1 Register
 }
