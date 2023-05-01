@@ -7,6 +7,7 @@
 #define ICG 3
 #define CLK_IN 7
 #define CLK_OUT 1
+#define DATA_CLK 5
 
 uint16_t ccd_buff[3648];
 
@@ -14,23 +15,26 @@ int i = 0;
 
 void setup() {
   Serial.begin(9600);
-  //analogWriteResolution(6);
+  analogWriteResolution(6);
 
   pinMode(CLK_OUT, OUTPUT);
   pinMode(CLK_IN, INPUT);
 
+  /*
   if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT) {
     // Enable CPU Cycle count
     ARM_DEMCR |= ARM_DEMCR_TRCENA;
     ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
   }
+  */
 
-  
   //analogWriteResolution(12);
-  //quadTimerFrequency(&IMXRT_TMR1, );
   analogWriteFrequency(CLK_OUT, 2000000);
   analogWrite(CLK_OUT, 128);
+  analogWriteFrequency(DATA_CLK, 500000); // FlexPWM2_1_A       EMC_08
 
+  ADC_Config();
+  ADC_ETC_Config();
   /*
   analogWriteFrequency(ICG, 133.33333);
   analogWrite(ICG, 5.46);
@@ -38,17 +42,16 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
-  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
-  cli();
+  //attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
+  //cli();
 
   //configureGPT1();
   //TimerInt_Init();
   //attachInterruptVector(hardware->irq, hardware->irq_handler);
-  
 }
 
 void loop() {
-  // analogread takes about 2 us to complete.
+  // analogread takes about 2 us to complete.0
   // digitalRead takes about 800 ns to complete.
   /*
   static uint32_t cntLast = ARM_DWT_CYCCNT;
@@ -58,8 +61,15 @@ void loop() {
   cntLast = cnt;
   analogRead(CLK_IN);
   */
-  Serial.print(ADC1_R0);
-  Serial.println(TRIG0_RESULT_1_0);
+
+  
+  Serial.print("FLEXPWM STATUS: ");
+  Serial.println(FLEXPWM2_SM1STS, BIN);
+  Serial.print("ADC result register:");
+  Serial.println(ADC1_R0, BIN);
+  Serial.print("ADC ETC result register: ");
+  Serial.println(ADC_ETC_TRIG0_RESULT_1_0, BIN);
+  
   /*
   readCCD();
   //Serial.println(ccd_buff);
@@ -215,7 +225,7 @@ void ADC_Config()
   // Enable COCO interrupt
   ADC1_HC0 |= (1<<7);
 
-  // Set input as ADC 1_IN0
+  // Set input as ADC1_IN0
   ADC1_HC0 |= (0b00000<<0);
 }
 
@@ -237,10 +247,10 @@ void ADC_ETC_Config()
 
 
   // --Global Control Register--
-  // Bit 31:      SOFTRST: Software synchronous reset disabled (active high)
-  // Bit 30:      TSC_BYPASS: TSC Not bypassed. This should be bypassed to use ADC2
-  // Bit 29:      DMA_MODE_SEL: Trigger DMA_REQ with latched signal
-  // Bits 23-16:  PRE_DIVIDER: Pre-divider for trig delay and interval
+  // Bit 31:      SOFTRST:            Software synchronous reset disabled (active high)
+  // Bit 30:      TSC_BYPASS:         TSC Not bypassed. This should be bypassed to use ADC2
+  // Bit 29:      DMA_MODE_SEL:       Trigger DMA_REQ with latched signal
+  // Bits 23-16:  PRE_DIVIDER:        Pre-divider for trig delay and interval
   // Bits 15-13:  EXT1_TRIG_PRIORITY: External TSC1 (touch source control) trigger priority (7 highest, 0 lowest). Set to 0.
   // Bit 12:      EXT1_TRIG_ENABLE:   Disable external TSC1 trigger.
   // Bits 11-9:   EXT0_TRIG_PRIORITY: External TSC0 trigger priority 0
@@ -250,17 +260,17 @@ void ADC_ETC_Config()
   ADC_ETC_CTRL = (0<<30) | (0<<29) | (0b00000000<<16) | (0b000<<13)|(0<<12) | (0b000<<9)|(0<<8) | (0b00000001<<0);
 
   // --Trigger Control Register--
-  // Bit 16:      SYNC_MODE:     Synchronization mode disabled
-  // Bits 14-12:  TRIG_PRIORITY: Set external trigger priority to 7
-  // Bits 10-8:   TRIG_CHAIN:    Set trigger chain length to 1.
-  // Bit 4:       TRIG_MODE:     Hardware trigger mode. Software trigger will be ignored.
-  // Bit 0:       SW_TRIG:       No software trigger even generated.
+  // Bit 16:      SYNC_MODE:          Synchronization mode disabled
+  // Bits 14-12:  TRIG_PRIORITY:      Set external trigger priority to 7
+  // Bits 10-8:   TRIG_CHAIN:         Set trigger chain length to 1.
+  // Bit 4:       TRIG_MODE:          Hardware trigger mode. Software trigger will be ignored.
+  // Bit 0:       SW_TRIG:            No software trigger even generated.
   ADC_ETC_TRIG0_CTRL = (0<<16) | (0b111<<12) | (0b000<<8) | (0<<4) | (0<<0);
 
   // --Trigger Counter Register--
   // Bits 31-16:  SAMPLE_INTERVAL: TRIGGER sampling interval counter. When B2B is unset: Interval_delay = (SAMPLE_INTERVAL+1)*(PRE_DIVIDER+1)*ipg_clk
   // Bits 15-0:   INIT_DELAY:      TRIGGER initial delay counter. Initial_delay = (INT_DELAY+1)*(PRE_DIVIDER+1)*ipg_clk
-  ADC_ETC_TRIG0_COUNTER = (0b0000000000000000<<16) | (0b0000000000000000<<0);
+  ADC_ETC_TRIG0_COUNTER = (0b0000000000000001<<16) | (0b0000000000000001<<0);
 
   // --Trigger Chain 0/1 Register
   // Bits 30-29:  IE1: Segment 1 done interrupt selected to no interrupt when finished
@@ -272,4 +282,28 @@ void ADC_ETC_Config()
   // Bits 11-4:   HWTS0: Segment 0 Hardware trigger selection selected to ADC TRIG0.
   // Bits 3-0:    CSEL0: ADC Channel Selection.
   ADC_ETC_TRIG0_CHAIN_1_0 = (0b00<<29) | (0<<28) | (0b00000000<<20) | (0b0000<<16) | (0b00<<13) | (0<<12) | (0b00000001<<4) | (0b0000<<0);
+
+  // Set PWM module to send a hardware trigger to XBAR
+  // Bit 15:      PWAOT0:   Output Trigger 0 Source Selected to route PWMA signal to PWM_OUT_TRIG0 port
+  FLEXPWM2_SM1TCTRL = (1<<15);
+
+  // XBAR configure to link PWM trigger and ADC trigger
+  // FLEXPWM2_PWM1_OUT_TRIG0  = XBAR1_IN44
+  // ADC_ETC_TRIG00           = XBAR1_OUT103
+
+  // Bits 14-8:   Input to be muxed to XBAR_OUT103. Set to 44 for FLEXPWM2_PWM1_OUT_TRIG0.
+  XBARA1_SEL51 = (0b00101100<<8);
+}
+
+
+
+void XBARA_Init()
+{
+  // Initialize XBARA
+}
+
+void XBARA_Configuration()
+{
+  // Connect PWM module as input for XBAR
+  // Connect ADC_ETC_Trig00 as the output for XBAR
 }
