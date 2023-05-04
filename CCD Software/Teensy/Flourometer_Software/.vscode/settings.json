@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "mimxrt1062.h": "c",
+        "core_cm7.h": "c",
+        "system_mimxrt1062.h": "c"
+    }
+}

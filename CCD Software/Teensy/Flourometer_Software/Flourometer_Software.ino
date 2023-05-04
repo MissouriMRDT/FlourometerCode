@@ -1,8 +1,18 @@
-#include <cstdint>
+#include <stdint.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <string.h>
+#include adc.h
 //#include <MIMXRT1062.h>
 
+/******************************************************************
+ *                        DEFINITIONS
+ ******************************************************************/
+#define DEMO_ADC_BASE           ((ADC_Type *)(0x400C4000u)) // ADC1     ((ADC_Type *)ADC1_BASE)
+
+
+// Pins
 #define CCD_IN A10
 #define SH 2
 #define ICG 3
@@ -15,6 +25,10 @@ uint16_t ccd_buff[3648];
 int i = 0;
 
 void setup() {
+  adc_etc_config_t adcEtcConfig;
+  adc_etc_trigger_config_t adcEtcTriggerConfig;
+  adc_etc_trigger_chain_config_t adcEtcTriggerChainConfig;
+
   Serial.begin(9600);
   analogWriteResolution(6);
 
@@ -29,13 +43,13 @@ void setup() {
   }
   */
 
+  /*
   //analogWriteResolution(12);
   analogWriteFrequency(CLK_OUT, 2000000);
   analogWrite(CLK_OUT, 128);
   analogWriteFrequency(DATA_CLK, 500000); // FlexPWM2_1_A       EMC_08
+  */
 
-  ADC_Config();
-  ADC_ETC_Config();
   /*
   analogWriteFrequency(ICG, 133.33333);
   analogWrite(ICG, 5.46);
@@ -43,12 +57,8 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
-  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
-  cli();
-
-  //configureGPT1();
-  //TimerInt_Init();
-  //attachInterruptVector(hardware->irq, hardware->irq_handler);
+  //attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
+  //cli();
 }
 
 void loop() {
@@ -64,8 +74,8 @@ void loop() {
   */
 
   
-  Serial.print("FLEXPWM STATUS: ");
-  Serial.println(FLEXPWM2_SM1STS, BIN);
+  //Serial.print("FLEXPWM STATUS: ");
+  //Serial.println(FLEXPWM2_SM1STS, BIN);
   Serial.print("ADC result register:");
   Serial.println(ADC1_R0, BIN);
   Serial.print("ADC ETC result register: ");
@@ -208,8 +218,11 @@ void ADC_ETC_Config()
 
   // Bits 14-8:   Input to be muxed to XBAR_OUT103. Set to 44 for FLEXPWM2_PWM1_OUT_TRIG0.
   XBARA1_SEL51 = (0b00101100<<8);
+
+
 }
 
+/*
 void ADC_SetChannelConfig(ADC_Type *base, uint32_t channelGroup, const adc_channel_config_t *config)
 {
   assert(NULL != config);
@@ -224,7 +237,7 @@ void ADC_SetChannelConfig(ADC_Type *base, uint32_t channelGroup, const adc_chann
   }
   base->HC[channelGroup] = tmp32;
 }
-
+*/
 void XBARA_Init()
 {
   // Initialize XBARA
@@ -234,4 +247,23 @@ void XBARA_Configuration()
 {
   // Connect PWM module as input for XBAR
   // Connect ADC_ETC_Trig00 as the output for XBAR
+}
+
+void ADC_Configuration(void)
+{
+  adc_config_t k_adcConfig;
+  adc_channel_config_t adcChannelConfigStruct;
+
+  ADC_GetDefualtConfig(&k_adcConfig);
+  ADC_Init(DEMO_ADC_BASE, &k_adcConfig);
+  ADC_EnableHardwareTrigger(DEMO_ADC_BASE, true);
+
+  if (kStatus_Success == ADC_DoAutoCalibration(DEMO_ADC_BASE))
+  {
+    Serial.println("ADC_DoAutoCalibration() Done.");
+  }
+  else
+  {
+    Serial.println("ADC_DoAutoCalibration() Failed.");
+  }
 }
