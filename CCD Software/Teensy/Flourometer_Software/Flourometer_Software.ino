@@ -3,7 +3,8 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <string.h>
-#include adc.h
+#include "adc.h"
+#include "xbara.h"
 //#include <MIMXRT1062.h>
 
 /******************************************************************
@@ -30,10 +31,13 @@ void setup() {
   adc_etc_trigger_chain_config_t adcEtcTriggerChainConfig;
 
   Serial.begin(9600);
-  analogWriteResolution(6);
+  //analogWriteResolution(6);
 
   pinMode(CLK_OUT, OUTPUT);
   pinMode(CLK_IN, INPUT);
+
+  ADC_Configuration();
+  XBARA_Configuration();
 
   /*
   if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT) {
@@ -238,27 +242,20 @@ void ADC_SetChannelConfig(ADC_Type *base, uint32_t channelGroup, const adc_chann
   base->HC[channelGroup] = tmp32;
 }
 */
-void XBARA_Init()
-{
-  // Initialize XBARA
-}
 
-void XBARA_Configuration()
+void ADC_Configuration()
 {
-  // Connect PWM module as input for XBAR
-  // Connect ADC_ETC_Trig00 as the output for XBAR
-}
+  uint32_t tmp32;
 
-void ADC_Configuration(void)
-{
   adc_config_t k_adcConfig;
   adc_channel_config_t adcChannelConfigStruct;
 
-  ADC_GetDefualtConfig(&k_adcConfig);
+  ADC_GetDefaultConfig(&k_adcConfig);
   ADC_Init(DEMO_ADC_BASE, &k_adcConfig);
   ADC_EnableHardwareTrigger(DEMO_ADC_BASE, true);
 
-  if (kStatus_Success == ADC_DoAutoCalibration(DEMO_ADC_BASE))
+  //  kStatusSuccess
+  if (0 == ADC_DoAutoCalibration(DEMO_ADC_BASE))
   {
     Serial.println("ADC_DoAutoCalibration() Done.");
   }
@@ -266,4 +263,12 @@ void ADC_Configuration(void)
   {
     Serial.println("ADC_DoAutoCalibration() Failed.");
   }
+}
+
+void XBARA_Configuration()
+{
+  XBARA_Init((XBARA_Type *)(0x403BC000u));
+
+  /* Configure the XBARA signal connections. */
+  XBARA_SetSignalsConnection()
 }

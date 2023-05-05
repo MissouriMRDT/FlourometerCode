@@ -1,7 +1,7 @@
 #include "adc.h"
 
 
-void ADC_GetDefualtConfig(adc_config_t *config)
+void ADC_GetDefaultConfig(adc_config_t *config)
 {
   assert(NULL != config);
 
@@ -64,3 +64,69 @@ void ADC_Init(ADC_Type *base, const adc_config_t *config)
     base->GC = tmp32;
 }
 
+int ADC_DoAutoCalibration(ADC_Type *base)
+{
+  /* Statuses:
+  *  Success:                 0
+  *  Fail:                    1
+  *  ReadOnly:                2
+  *  OutOfRange:              3
+  *  InvalidArgument:         4
+  *  TimeOut:                 5
+  *  NoTransferInProgress:    6
+  *  Busy:                    7
+  *  NoData:                  8
+  */
+
+  int status = 0; // Status success
+
+#if !(defined(FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE) && FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE)
+  bool bHWTrigger = false;
+
+  /* Calibration would be failed when in hardware mode
+   * Remember the hardware trigger state here and restore it later if the hardware trigger is enabled.*/
+  if (0U != (ADC_CFG_ADTRG_MASK & base->CFG))
+  {
+    bHWTrigger = true;
+    ADC_EnableHardwareTrigger(base, false);
+  }
+#endif
+
+  /* Clear the CALF and launch the calibration. */
+  base->GS = ADC_GS_CALF_MASK;
+  base->GC |= ADC_GC_CAL_MASK;
+
+  /* Check the status of the CALF bit in ADC_GS and the CAL bit in ADC_GC. */
+  while (0U != (base->GC & ADC_GC_CAL_MASK))
+  {
+    /* Check the CALF when the calibration is active. */
+    if (0U != ((uint32_t)(base->GS) & (uint32_t)(kADC_CalibrationFailedFlag)))
+    {
+      status = 1; // Fail status
+      break;
+    }
+  }
+
+  /* When CAL bit becomes '0' then check the CALF status and COCO[0] bit status*/
+  if (0U == ADC_GetChannelStatusFlags(base, 0U))
+  {
+    status = 1; // Fail status
+  } //                              kADC_CalibrationFailedFlag
+  if (0U != (base->GS) & (uint32_t)(2)) /* Check the CALF status */
+  {
+    status = 1; // Fail status
+  }
+
+  /* Clear conversion done flag. */
+  (void)ADC_GetChannelConversionValue(base, 0U);
+
+#if !(defined(FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE) && FSL_FEATURE_ADC_SUPPORT_HARDWARE_TRIGGER_REMOVE)
+    /* Restore original trigger mode. */
+    if (true == bHWTrigger)
+    {
+      ADC_EnableHardwareTrigger(base, true);
+    }
+#endif
+
+  return status;
+}

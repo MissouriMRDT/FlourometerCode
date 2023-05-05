@@ -5,9 +5,14 @@
 #include <stdlib.h>
 #include "MIMXRT1062.h"
 
-void ADC_GetDefualtConfig(adc_config_t *config);
+// ***********************************************************
+//                           PROTOTYPES
+// ***********************************************************
+void ADC_GetDefaultConfig(adc_config_t *config);
 
 void ADC_Init(ADC_Type *base, const adc_config_t *config);
+
+int ADC_DoAutoCalibration(ADC_Type *base)
 
 static inline void ADC_EnableHardwareTrigger(ADC_Type *base, bool enable)
 {
@@ -20,6 +25,23 @@ static inline void ADC_EnableHardwareTrigger(ADC_Type *base, bool enable)
   }
 }
 
+static inline uint32_t ADC_GetChannelStatusFlags(ADC_Type *base, uint32_t channelGroup)
+{
+  //                               FSL_FEATURE_ADC_CONVERSION_CONTROL_COUNT
+  assert(channelGroup < (uint32_t)(8));
+
+  /* If flag is set, return 1, otherwise, return 0. */
+  return (((base->HS) & (1UL << channelGroup)) >> channelGroup);
+}
+
+static inline uint32_t ADC_GetChannelConversionValue(ADC_Type *base, uint32_t channelGroup)
+{
+  // Conversion control count 9related to number of registers HCn and Rn).
+  //                               FSL_FEATURE_ADC_CONVERSION_CONTROL_COUNT
+  assert(channelGroup < (uint32_t)(8));
+
+  return base->R[channelGroup];
+}
 
 // ***********************************************************
 //                            STRUCTS
@@ -39,6 +61,14 @@ typedef struct _adc_config
   adc_clock_driver_t clockDriver;
   adc_resolution_t resolution;
 } adc_config_t;
+
+typedef struct _adc_channel_config
+{
+  uint32_t channelNumber;                       /* Setting the conversion channel number. The available range is 0-31.
+                                                   See channel connection information for each chip in Reference
+                                                   Manual document. */
+  bool enableInterruptOnConversionCompleted;    /* Generate an interrupt request once the conversion is completed. */
+} adc_channel_config_t;
 
 typedef struct _adc_etc_config
 {
@@ -139,3 +169,11 @@ typedef enum _adc_etc_interrupt_enable
   kADC_ETC_Done2InterruptEnable = 2U,   // enable DONE2 interrupt when ADC conversion complete.
   kADC_ETC_Done3InterruptEnable = 3U,   // enable DONE3 interrupt when ADC conversion complete.
 } adc_etc_interrupt_enable_t;
+
+typedef enum _adc_status_flags
+{
+  kADC_ConversionActiveFlag  = ADC_GS_ADACT_MASK, /*!< Conversion is active,not support w1c. */
+  kADC_CalibrationFailedFlag = ADC_GS_CALF_MASK,  /*!< Calibration is failed,support w1c. */
+  kADC_AsynchronousWakeupInterruptFlag =
+      ADC_GS_AWKST_MASK, /*!< Asynchronous wakeup interrupt occurred, support w1c. */
+} adc_status_flags_t;
