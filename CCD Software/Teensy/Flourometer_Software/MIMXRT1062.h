@@ -282,8 +282,9 @@ typedef enum IRQn {
 #include "core_cm7.h"                  /* Core Peripheral Access Layer */
 #include "system_MIMXRT1062.h"         /* Device specific configuration file */
 
-typedef __int32 int32_t;
+/*typedef __int32 int32_t;
 typedef unsigned __int32 uint32_t;
+*/
 
 /*!
  * @}

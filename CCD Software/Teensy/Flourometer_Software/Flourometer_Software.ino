@@ -3,8 +3,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <string.h>
-#include "adc.h"
-#include "xbara.h"
 //#include <MIMXRT1062.h>
 
 /******************************************************************
@@ -26,9 +24,11 @@ uint16_t ccd_buff[3648];
 int i = 0;
 
 void setup() {
+  /*
   adc_etc_config_t adcEtcConfig;
   adc_etc_trigger_config_t adcEtcTriggerConfig;
   adc_etc_trigger_chain_config_t adcEtcTriggerChainConfig;
+  */
 
   Serial.begin(9600);
   //analogWriteResolution(6);
@@ -36,8 +36,8 @@ void setup() {
   pinMode(CLK_OUT, OUTPUT);
   pinMode(CLK_IN, INPUT);
 
-  ADC_Configuration();
-  XBARA_Configuration();
+  //ADC_Configuration();
+  //XBARA_Configuration();
 
   /*
   if (ARM_DWT_CYCCNT == ARM_DWT_CYCCNT) {
@@ -47,12 +47,12 @@ void setup() {
   }
   */
 
-  /*
-  //analogWriteResolution(12);
+  
+  analogWriteResolution(12);
   analogWriteFrequency(CLK_OUT, 2000000);
   analogWrite(CLK_OUT, 128);
   analogWriteFrequency(DATA_CLK, 500000); // FlexPWM2_1_A       EMC_08
-  */
+  
 
   /*
   analogWriteFrequency(ICG, 133.33333);
@@ -61,8 +61,8 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
-  //attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
-  //cli();
+  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
+  cli();
 }
 
 void loop() {
@@ -76,7 +76,6 @@ void loop() {
   cntLast = cnt;
   analogRead(CLK_IN);
   */
-
   
   //Serial.print("FLEXPWM STATUS: ");
   //Serial.println(FLEXPWM2_SM1STS, BIN);
@@ -85,7 +84,7 @@ void loop() {
   Serial.print("ADC ETC result register: ");
   Serial.println(ADC_ETC_TRIG0_RESULT_1_0, BIN);
   
-  /*
+  
   readCCD();
   //Serial.println(ccd_buff);
   
@@ -93,7 +92,6 @@ void loop() {
     Serial.println(ccd_buff[j]);
 
   while(1);
-  */
 }
 
 void readCCD() {
@@ -224,51 +222,4 @@ void ADC_ETC_Config()
   XBARA1_SEL51 = (0b00101100<<8);
 
 
-}
-
-/*
-void ADC_SetChannelConfig(ADC_Type *base, uint32_t channelGroup, const adc_channel_config_t *config)
-{
-  assert(NULL != config);
-  assert(channelGroup < (uint32_t)FSL_FEATURE_ADC_CONVERSION_CONTROL_COUNT);
-
-  uint32_t tmp32;
-
-  tmp32 = ADC_HC_ADCH(config->channelNumber);
-  if (config->enableInterruptOnConversionCompleted)
-  {
-    tmp32 |= ADC_HC_AIEN_MASK;
-  }
-  base->HC[channelGroup] = tmp32;
-}
-*/
-
-void ADC_Configuration()
-{
-  uint32_t tmp32;
-
-  adc_config_t k_adcConfig;
-  adc_channel_config_t adcChannelConfigStruct;
-
-  ADC_GetDefaultConfig(&k_adcConfig);
-  ADC_Init(DEMO_ADC_BASE, &k_adcConfig);
-  ADC_EnableHardwareTrigger(DEMO_ADC_BASE, true);
-
-  //  kStatusSuccess
-  if (0 == ADC_DoAutoCalibration(DEMO_ADC_BASE))
-  {
-    Serial.println("ADC_DoAutoCalibration() Done.");
-  }
-  else
-  {
-    Serial.println("ADC_DoAutoCalibration() Failed.");
-  }
-}
-
-void XBARA_Configuration()
-{
-  XBARA_Init((XBARA_Type *)(0x403BC000u));
-
-  /* Configure the XBARA signal connections. */
-  XBARA_SetSignalsConnection()
 }
