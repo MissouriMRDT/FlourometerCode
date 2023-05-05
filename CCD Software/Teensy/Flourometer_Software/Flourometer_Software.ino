@@ -133,7 +133,7 @@ void ADC_Config()
   // Bit 4:       ADLSMP; Set to short sample mode
   // Bits 3-2:    MODE; ADC Resolution set to 8-bit conversion
   // Bits 1-0:    ADICLK; IPG clock divided by 1 selected as input clock source to generate ADCK
-  ADC1_CFG = (0<<16) | (1<<13) | (0b00<<11) | (1<<10) | (0b00<<8) | (0<<7) | (0b00<<5) | (0b00<<2) | (0b00<<0);
+  ADC1_CFG = (0<<16) | (1<<13) | (0b00<<11) | (0<<10) | (0b00<<8) | (0<<7) | (0b00<<5) | (0<<4) | (0b10<<2) | (0b00<<0);
 
   // --General Control register--
 
@@ -149,11 +149,32 @@ void ADC_Config()
 
   // --Trigger Control Register--
   
-  // Enable COCO interrupt
-  ADC1_HC0 |= (1<<7);
+  // Disable COCO interrupts
+  ADC1_HC0 &= (0<<7);
+  ADC1_HC0 &= (0<<7);
 
-  // Set input as ADC1_IN0
-  ADC1_HC0 |= (0b00000<<0);
+  // Set hardware triggers as external channels 15 for HC0 and HC1
+  ADC1_HC0 |= (0b01111<<0);
+  ADC1_HC1 |= (0b01111<<0);
+}
+
+void ADC_Calibrate()
+{
+    // --Calibration--
+  /*To complete calibration, the user must follow the below procedure:
+   *  1. Configure ADC_CFG with actual operating values for maximum accuracy.
+   *  2. Configure the ADC_GC values along with CAL bit.
+   *  3. Check the status of CALF bit in ADC_GS and the CAL bit in ADC_GC.
+   *  4. When CAL bit becomes '0' then check the CALF status and COCO[0] bit status.
+   */
+
+  bool bHWTrigger = false;
+
+  if (0U != ((0x2000U) & ADC1_CFG))
+  {
+    bHWTrigger = true;
+    
+  }
 }
 
 void ADC_ETC_Config()
