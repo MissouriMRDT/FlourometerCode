@@ -1,3 +1,5 @@
+#include <RoveComm.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <avr/io.h>
@@ -15,25 +17,28 @@
 #define CCD_IN A10
 #define SH 2
 #define ICG 3
-#define CLK_IN 7
-#define CLK_OUT 1
+#define MASTER_CLK 1
 #define DATA_CLK 5
+#define CLK_IN 4
 
 uint16_t ccd_buff[3648];
 
 int i = 0;
 
-void setup() {
-  /*
-  adc_etc_config_t adcEtcConfig;
-  adc_etc_trigger_config_t adcEtcTriggerConfig;
-  adc_etc_trigger_chain_config_t adcEtcTriggerChainConfig;
-  */
 
+RoveCommEthernet RoveComm;
+EthernetServer TCPServer(RC_ROVECOMM_ETHERNET_TCP_PORT);
+
+
+
+void setup() {
   Serial.begin(9600);
   //analogWriteResolution(6);
 
-  pinMode(CLK_OUT, OUTPUT);
+  pinMode(SH, OUTPUT);
+  pinMode(ICG, OUTPUT);
+  pinMode(MASTER_CLK, OUTPUT);
+  pinMode(DATA_CLK, OUTPUT);
   pinMode(CLK_IN, INPUT);
 
   //ADC_Configuration();
@@ -48,11 +53,13 @@ void setup() {
   */
 
   
-  analogWriteResolution(12);
-  analogWriteFrequency(CLK_OUT, 2000000);
-  analogWrite(CLK_OUT, 128);
-  analogWriteFrequency(DATA_CLK, 500000); // FlexPWM2_1_A       EMC_08
+  //analogWriteResolution(12);
+  analogWriteFrequency(MASTER_CLK, 1000000);
+  analogWriteFrequency(DATA_CLK, 1000000/4);
+  analogWrite(MASTER_CLK, 128);
+  analogWrite(DATA_CLK, 32);
   
+  //analogWriteFrequency(DATA_CLK, 500000); // FlexPWM2_1_A       EMC_08
 
   /*
   analogWriteFrequency(ICG, 133.33333);
@@ -61,12 +68,15 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
-  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, FALLING);
-  cli();
+  Serial.println("A");
+  RoveComm.begin(RC_SCIENCESENSORSBOARD_FIRSTOCTET, RC_SCIENCESENSORSBOARD_SECONDOCTET, RC_SCIENCESENSORSBOARD_THIRDOCTET, RC_SCIENCESENSORSBOARD_FOURTHOCTET, &TCPServer);
+  Serial.println("B");
+
+  
 }
 
 void loop() {
-  // analogread takes about 2 us to complete.0
+  // analogread takes about 2 us to complete.
   // digitalRead takes about 800 ns to complete.
   /*
   static uint32_t cntLast = ARM_DWT_CYCCNT;
@@ -77,21 +87,48 @@ void loop() {
   analogRead(CLK_IN);
   */
   
-  //Serial.print("FLEXPWM STATUS: ");
-  //Serial.println(FLEXPWM2_SM1STS, BIN);
+  /*
+  Serial.print("FLEXPWM STATUS: ");
+  Serial.println(FLEXPWM2_SM1STS, BIN);
   Serial.print("ADC result register:");
   Serial.println(ADC1_R0, BIN);
   Serial.print("ADC ETC result register: ");
   Serial.println(ADC_ETC_TRIG0_RESULT_1_0, BIN);
-  
-  
-  readCCD();
-  //Serial.println(ccd_buff);
-  
-  for(int j = 0; j < 3648; j++)
-    Serial.println(ccd_buff[j]);
+  */
 
-  while(1);
+  rovecomm_packet packet = RoveComm.read();
+  switch (packet.data_id) {
+
+    case RC_SCIENCESENSORSBOARD_REQFLUOROMETER_DATA_ID:
+    {
+      Serial.println("Received.");
+    
+      readCCD();
+      RoveComm.write(10100, 500, (&ccd_buff[0]));
+      RoveComm.write(10100, 500, (&ccd_buff[500]));
+      RoveComm.write(10100, 500, (&ccd_buff[1000]));
+      RoveComm.write(10100, 500, (&ccd_buff[1500]));
+      RoveComm.write(10100, 500, (&ccd_buff[2000]));
+      RoveComm.write(10100, 500, (&ccd_buff[2500]));
+      RoveComm.write(10100, 500, (&ccd_buff[3000]));
+      RoveComm.write(10100, 148, (&ccd_buff[3500]));
+      break;
+    }
+
+    default:
+      break;
+  }
+  
+  
+ /*
+  readCCD();
+  
+  for(int j = 500; j < 1000; j++) {
+    Serial.println(ccd_buff[j]);
+  }
+  
+  while(1);*/
+  
 }
 
 void readCCD() {
@@ -99,21 +136,22 @@ void readCCD() {
   
   digitalWrite(SH, LOW);
   digitalWrite(ICG, HIGH);
-  delayMicroseconds(1);
+  delayMicroseconds(2);
   digitalWrite(SH, HIGH);
   delayMicroseconds(5);
   digitalWrite(ICG, LOW);
 
   i = 0;
   
-  sei();
-  delay(8);
-  cli();
+  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, RISING);
+  delay(20);
+  detachInterrupt(digitalPinToInterrupt(CLK_IN));
+  Serial.println(i);
 }
 
 void ccd_isr() {
-  if (i%4 == 1 && i > 4*32 && i < 4*(32+3648)) {
-    ccd_buff[(i/4)-32] = analogRead(CCD_IN);
+  if (i >= 32 && i < (32+3648)) {
+    ccd_buff[i-32] = analogRead(CCD_IN);
   }
   i++;
 }
