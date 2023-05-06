@@ -18,8 +18,9 @@
 #define SH 2
 #define ICG 3
 #define MASTER_CLK 1
-#define DATA_CLK 5
 #define CLK_IN 4
+#define DATA_CLK 5
+#define DATA_CLK_IN 8
 
 uint16_t ccd_buff[3648];
 
@@ -34,10 +35,7 @@ EthernetServer TCPServer(RC_ROVECOMM_ETHERNET_TCP_PORT);
 void setup() {
   Serial.begin(9600);
 
-  pinMode(SH, OUTPUT);
-  pinMode(ICG, OUTPUT);
   pinMode(MASTER_CLK, OUTPUT);
-  pinMode(DATA_CLK, OUTPUT);
   pinMode(CLK_IN, INPUT);
 
   //ADC_Configuration();
@@ -67,12 +65,9 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
-  /*
   Serial.println("A");
   RoveComm.begin(RC_SCIENCESENSORSBOARD_FIRSTOCTET, RC_SCIENCESENSORSBOARD_SECONDOCTET, RC_SCIENCESENSORSBOARD_THIRDOCTET, RC_SCIENCESENSORSBOARD_FOURTHOCTET, &TCPServer);
   Serial.println("B");
-  */
-  
 }
 
 void loop() {
@@ -96,7 +91,6 @@ void loop() {
   Serial.println(ADC_ETC_TRIG0_RESULT_1_0, BIN);
   */
 
-  /*
   rovecomm_packet packet = RoveComm.read();
   switch (packet.data_id) {
 
@@ -119,35 +113,36 @@ void loop() {
     default:
       break;
   }
-  */
   
   
- /*
-  readCCD();
   
+  //readCCD();
+
+  /*
   for(int j = 500; j < 1000; j++) {
     Serial.println(ccd_buff[j]);
   }
+  */
   
-  while(1);*/
+  //while(1);
   
 }
 
 void readCCD() {
-  while (digitalRead(CLK_IN));
+  while (!digitalRead(DATA_CLK_IN));
   
   digitalWrite(SH, LOW);
   digitalWrite(ICG, HIGH);
-  delayMicroseconds(1);
+  delayMicroseconds(2);
   digitalWrite(SH, HIGH);
   delayMicroseconds(5);
   digitalWrite(ICG, LOW);
 
   i = 0;
   
-  attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, RISING);
+  attachInterrupt(digitalPinToInterrupt(DATA_CLK_IN), ccd_isr, RISING);
   delay(20);
-  detachInterrupt(digitalPinToInterrupt(CLK_IN));
+  detachInterrupt(digitalPinToInterrupt(DATA_CLK_IN));
   Serial.println(i);
 }
 
