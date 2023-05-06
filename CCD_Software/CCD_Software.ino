@@ -33,7 +33,6 @@ EthernetServer TCPServer(RC_ROVECOMM_ETHERNET_TCP_PORT);
 
 void setup() {
   Serial.begin(9600);
-  //analogWriteResolution(6);
 
   pinMode(SH, OUTPUT);
   pinMode(ICG, OUTPUT);
@@ -68,10 +67,11 @@ void setup() {
   analogWrite(SH, 1638);
   */
 
+  /*
   Serial.println("A");
   RoveComm.begin(RC_SCIENCESENSORSBOARD_FIRSTOCTET, RC_SCIENCESENSORSBOARD_SECONDOCTET, RC_SCIENCESENSORSBOARD_THIRDOCTET, RC_SCIENCESENSORSBOARD_FOURTHOCTET, &TCPServer);
   Serial.println("B");
-
+  */
   
 }
 
@@ -96,6 +96,7 @@ void loop() {
   Serial.println(ADC_ETC_TRIG0_RESULT_1_0, BIN);
   */
 
+  /*
   rovecomm_packet packet = RoveComm.read();
   switch (packet.data_id) {
 
@@ -118,6 +119,7 @@ void loop() {
     default:
       break;
   }
+  */
   
   
  /*
@@ -136,7 +138,7 @@ void readCCD() {
   
   digitalWrite(SH, LOW);
   digitalWrite(ICG, HIGH);
-  delayMicroseconds(2);
+  delayMicroseconds(1);
   digitalWrite(SH, HIGH);
   delayMicroseconds(5);
   digitalWrite(ICG, LOW);
