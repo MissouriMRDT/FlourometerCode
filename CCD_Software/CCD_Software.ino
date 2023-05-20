@@ -1,11 +1,18 @@
 #include "CCD_Software.h"
 
+uint16_t SH_Period = 0;
+
 void setup()
 {
     Serial.begin(9600);
 
     pinMode(MASTER_CLK, OUTPUT);
+    pinMode(ICG, OUTPUT);
+    pinMode(SH, OUTPUT);
+    
     pinMode(CLK_IN, INPUT);
+    pinMode(CCD_IN, INPUT);
+    pinMode(DATA_CLK_IN, INPUT);
 
     pinMode(CONTROL_LED_265, OUTPUT);
     pinMode(CONTROL_LED_275, OUTPUT);
@@ -14,10 +21,12 @@ void setup()
     pinMode(CONTROL_LED_365, OUTPUT);
 
     analogWriteResolution(8);
-    analogWriteFrequency(MASTER_CLK, 1000000);
-    analogWriteFrequency(DATA_CLK, 1000000 / 4);
+    analogWriteFrequency(MASTER_CLK, MC_FREQ);
+    analogWriteFrequency(DATA_CLK, MC_FREQ / 4);
     analogWrite(MASTER_CLK, 128);
     analogWrite(DATA_CLK, 32);
+
+    attachInterrupt(digitalPinToInterrupt(CLK_IN), ccd_isr, RISING);
 
     Serial.println("RoveComm Initializing...");
     RoveComm.begin(RC_SCIENCESENSORSBOARD_FIRSTOCTET, RC_SCIENCESENSORSBOARD_SECONDOCTET, RC_SCIENCESENSORSBOARD_THIRDOCTET, RC_SCIENCESENSORSBOARD_FOURTHOCTET, &TCPServer);
@@ -45,18 +54,20 @@ void loop()
     // Read and transmit CCD buffer
     case RC_SCIENCESENSORSBOARD_REQFLUOROMETER_DATA_ID:
     {
+        SHPeriod = ((uint16_t *)packet.data)[0];
+        
         Serial.println("Reading...");
         readCCD();
 
         Serial.println("Writing...");
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA1_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA1_DATA_COUNT, (&ccd_buff[0]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA2_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA2_DATA_COUNT, (&ccd_buff[500]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA3_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA3_DATA_COUNT, (&ccd_buff[1000]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA4_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA4_DATA_COUNT, (&ccd_buff[1500]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA5_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA5_DATA_COUNT, (&ccd_buff[2000]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA6_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA6_DATA_COUNT, (&ccd_buff[2500]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA7_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA7_DATA_COUNT, (&ccd_buff[3000]));
-        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA8_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA8_DATA_COUNT, (&ccd_buff[3500]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA1_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA1_DATA_COUNT, (uint16_t)(&ccd_buff[0]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA2_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA2_DATA_COUNT, (uint16_t)(&ccd_buff[500]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA3_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA3_DATA_COUNT, (uint16_t)(&ccd_buff[1000]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA4_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA4_DATA_COUNT, (uint16_t)(&ccd_buff[1500]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA5_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA5_DATA_COUNT, (uint16_t)(&ccd_buff[2000]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA6_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA6_DATA_COUNT, (uint16_t)(&ccd_buff[2500]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA7_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA7_DATA_COUNT, (uint16_t)(&ccd_buff[3000]));
+        RoveComm.write(RC_SCIENCESENSORSBOARD_FLUOROMETERDATA8_DATA_ID, RC_SCIENCESENSORSBOARD_FLUOROMETERDATA8_DATA_COUNT, (uint16_t)(&ccd_buff[3500]));
 
         break;
     }
@@ -71,20 +82,27 @@ void loop()
 
 void readCCD()
 {
-    while (!digitalRead(DATA_CLK_IN))
-        ;
+    while (!digitalRead(DATA_CLK_IN));
 
-    digitalWrite(SH, LOW);
     digitalWrite(ICG, HIGH);
+    digitalWrite(SH, LOW);
     delayMicroseconds(2);
     digitalWrite(SH, HIGH);
     delayMicroseconds(5);
+    //while (!digitalRead(CLK_IN));
     digitalWrite(ICG, LOW);
 
     ccd_buff_index = 0;
     attachInterrupt(digitalPinToInterrupt(DATA_CLK_IN), ccd_isr, RISING);
-    delay(20);
+    delay((1/(float)(MC_FREQ/4))*NUM_CCD_ELEMENTS*1000);
     detachInterrupt(digitalPinToInterrupt(DATA_CLK_IN));
+    
+    digitalWrite(ICG, HIGH);
+    digitalWrite(SH, LOW);
+    delayMicroseconds(2);
+    digitalWrite(SH, HIGH);
+
+    delay(10);
 }
 
 void ccd_isr()

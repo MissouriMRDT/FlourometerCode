@@ -24,6 +24,10 @@ RoveCommEthernet RoveComm;
 #define CONTROL_LED_310 40
 #define CONTROL_LED_365 41
 
+// Timing Constants
+#define MC_FREQ 1000000
+#define NUM_CCD_ELEMENTS 3694
+
 // Variables
 uint16_t ccd_buff[3648];
 int ccd_buff_index = 0;
