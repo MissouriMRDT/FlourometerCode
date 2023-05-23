@@ -3,7 +3,7 @@
 void setup() {
   Serial.begin(115200);
 
-  Serial1.begin(115200);
+  Serial1.begin(9600);
 }
 
 /* The firmware expects 12 bytes from the computer and will not do anything until 12 bytes have been received.
@@ -20,13 +20,15 @@ void loop() {
     {
       rxtxOneReading();
       //Serial.print("txfull: ");
-      /*for (int k = 0; k < 12; k++)
+      /*
+      for (int k = 0; k < 12; k++)
       {
         Serial.print(txfull[k], BIN);
         Serial.print(" ");
       }
       */
-      for (int i = 0; i < sizeof(rxData16); i++)
+      
+      for (int i = 0; i < sizeof(rxData16)/2; i++)
         Serial.println(rxData16[i]);
     }
   }
@@ -53,9 +55,9 @@ void rxtxOneReading()
   txfull[10] = AVGn[0];
   txfull[11] = AVGn[1];
 
-  Serial1.write(txfull, 96);
+  Serial1.write(txfull, sizeof(txfull));
 
-  for (int j = 0; j < 7388; j++)
+  for (int j = 0; j < sizeof(rxData8); j++)
   {
     uint8_t tmp = Serial1.read(); //analogRead(0);
     //Serial.println(tmp, BIN);
@@ -66,6 +68,8 @@ void rxtxOneReading()
 
   for (int i = 0; i < 3694; i++)
   {
-    rxData16[i] = (rxData8[2*i+1] << 8) + rxData8[2*i];
+    rxData16[i] = rxData8[2*i+1];
+    rxData16[i] = rxData16[i] << 8;
+    rxData16[i] = rxData16[i] + rxData8[2*i];
   }
 }
