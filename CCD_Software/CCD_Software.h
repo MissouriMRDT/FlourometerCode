@@ -18,18 +18,16 @@ RoveCommEthernet RoveComm;
 #define DATA_CLK 5
 #define DATA_CLK_IN 8
 
+// LED Pins
 #define CONTROL_LED_265 27
 #define CONTROL_LED_275 38
 #define CONTROL_LED_280 39
 #define CONTROL_LED_310 40
 #define CONTROL_LED_365 41
 
-// Timing Constants
-#define MC_FREQ 1000000
-#define NUM_CCD_ELEMENTS 3694
+// CCD
+#define CCD_SIZE 215
+uint16_t ccd_buff[CCD_SIZE];
 
-// Variables
-uint16_t ccd_buff[3648];
-int ccd_buff_index = 0;
 
 #endif
