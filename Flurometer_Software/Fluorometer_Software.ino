@@ -1,6 +1,7 @@
 #include "Fluorometer_Software.h"
 #include "C12880MA.h"
 #include "RoveComm.h"
+#include "RoveCommManifest.h"
 
 void setup() {
     // Serial Debugger
@@ -8,7 +9,10 @@ void setup() {
     Serial.println("");
 
     // I/O
-    // TODO: Call pinmode for LED pins
+    pinmode(LED_400, OUTPUT);
+    pinmode(LED_430, OUTPUT);
+    pinmode(LED_522, OUTPUT);
+    pinmode(LED_530, OUTPUT);
     
     // RoveComm
     Serial.println("");
