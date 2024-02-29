@@ -1,145 +1,123 @@
-#include "C12880MA.h"
-#include <stdint.h>
-#include "Arduino.h"
+/*
+  c12880.cpp - Library for interacting with the Hamamatsu C12880
+                          microspectrometer
+  Created by Craig Wm. Versek, 2017-03-01
+  
+  Much of the initial implmentation was based on this project:
+  https://github.com/groupgets/c12880ma/blob/master/arduino_c12880ma_example/arduino_c12880ma_example.ino
+ */
+#include <Arduino.h>
+#include <elapsedMillis.h>
+#include "c12880.h"
+ 
+#define CLOCK_FREQUENCY 50000
 
-const uint8_t pin_to_channel[] = { // pg 482
-	7,	// 0/A0  AD_B1_02
-	8,	// 1/A1  AD_B1_03
-	12,	// 2/A2  AD_B1_07
-	11,	// 3/A3  AD_B1_06
-	6,	// 4/A4  AD_B1_01
-	5,	// 5/A5  AD_B1_00
-	15,	// 6/A6  AD_B1_10
-	0,	// 7/A7  AD_B1_11
-	13,	// 8/A8  AD_B1_08
-	14,	// 9/A9  AD_B1_09
-	1,	// 24/A10 AD_B0_12 
-	2,	// 25/A11 AD_B0_13
-	128+3,	// 26/A12 AD_B1_14 - only on ADC2, 3
-	128+4,	// 27/A13 AD_B1_15 - only on ADC2, 4
-	7,	// 14/A0  AD_B1_02
-	8,	// 15/A1  AD_B1_03
-	12,	// 16/A2  AD_B1_07
-	11,	// 17/A3  AD_B1_06
-	6,	// 18/A4  AD_B1_01
-	5,	// 19/A5  AD_B1_00
-	15,	// 20/A6  AD_B1_10
-	0,	// 21/A7  AD_B1_11
-	13,	// 22/A8  AD_B1_08
-	14,	// 23/A9  AD_B1_09
-	1,	// 24/A10 AD_B0_12
-	2,	// 25/A11 AD_B0_13
-	128+3,	// 26/A12 AD_B1_14 - only on ADC2, 3
-	128+4,	// 27/A13 AD_B1_15 - only on ADC2, 4
-#ifdef ARDUINO_TEENSY41
-	255,	// 28
-	255,	// 29
-	255,	// 30
-	255,	// 31
-	255,	// 32
-	255,	// 33
-	255,	// 34
-	255,	// 35
-	255,	// 36
-	255,	// 37
-	128+1,	// 38/A14 AD_B1_12 - only on ADC2, 1
-	128+2,	// 39/A15 AD_B1_13 - only on ADC2, 2
-	9,	// 40/A16 AD_B1_04
-	10,	// 41/A17 AD_B1_05
-#endif
-}; // links to array in Teensy analog.c library
 
-// Begins a reading from ADC
-void startSample(uint8_t pin) {
-    // validate pin and determine corresponding ADC channel
-    if (pin > sizeof(pin_to_channel)) return;
-    uint8_t ch = pin_to_channel[pin];
-    if (ch == 255) return;
+////////////////////////////////////////////////////////////////////////////////
+// High performance helper functions
 
-    // Start ADC reading
-    if(!(ch & 0x80)) {
-		ADC1_HC0 = ch;
-	} else {
-		ADC2_HC0 = ch & 0x7f;
-	}
+//this function produces a delay for *half* clock period (100ns), approaching 5MHz
+//for Teensyduino works up to 180MHz clock such as in the Teensy 3.6
+static inline void _ultrashort_delay_100ns(){
+  //default to something that should always work in Arduino
+  delayMicroseconds(1);
 }
 
-int16_t readSample(uint8_t pin) {
-    // validate pin and determine corresponding ADC channel
-    if (pin > sizeof(pin_to_channel)) return 0;
-    uint8_t ch = pin_to_channel[pin];
-    if (ch == 255) return 0;
+////////////////////////////////////////////////////////////////////////////////
 
-    // Read ADC
-    if(!(ch & 0x80)) {
-		return (ADC1_HS & ADC_HS_COCO0)? ADC1_R0 : -1;
-	} else {
-		return (ADC2_HS & ADC_HS_COCO0)? ADC2_R0 : -1;
-	}
+C12880_Class::C12880_Class(const int TRG_pin,
+                             const int ST_pin,
+                             const int CLK_pin,
+                             const int VIDEO_pin
+                             ){
+  _TRG_pin = TRG_pin;
+  _ST_pin  = ST_pin;
+  _CLK_pin = CLK_pin;
+  _VIDEO_pin = VIDEO_pin;
+  
+  _clock_delay_micros = 1; // half of a clock period
+  _min_integ_micros = 0;   // this is correction which is platform dependent and 
+                           // should be measured in `begin`
+  set_integration_time(0.010);  // integration time default to 1ms
 }
 
-void C12880MA::init() {
-    // I/O
-    pinMode(m_LED_WHITE_pin, OUTPUT);
-    pinMode(m_VIDEO_pin, INPUT);
-    pinMode(m_EOS_pin, INPUT_PULLDOWN);
-    pinMode(m_TRG_pin, INPUT);
-    pinMode(m_START_pin, OUTPUT);
-    pinMode(m_CLK_pin, OUTPUT);
-
-    // Video ADC Configuraiton
-    analogReadAveraging(1);
-    analogReadRes(8);
-
-    digitalWrite(m_START_pin, LOW);
-    // Clock Initialization 
-    analogWriteFrequency(m_CLK_pin, 280000);
-    analogWrite(m_CLK_pin, 127);
-
-};
-
-C12880MA::C12880MA(uint8_t CLK_pin, uint8_t TRG_pin, uint8_t START_pin, uint8_t EOS_pin, uint8_t VIDEO_pin, uint8_t LED_WHITE_pin) {
-    m_CLK_pin = CLK_pin;
-    m_TRG_pin = TRG_pin;
-    m_START_pin = START_pin;
-    m_EOS_pin = EOS_pin;
-    m_VIDEO_pin = VIDEO_pin;
-    m_LED_WHITE_pin = LED_WHITE_pin;
-};
-
-// Interrupt service routine for rising edge of TRG pin
-static C12880MA *active_C12880MA;
-void TRG_isr() {
-    digitalWrite(0, HIGH);
-    // if m_TRG_index between start and stop indices, store result of readSample() into video array
-    if ((active_C12880MA->m_TRG_index > 89) && (active_C12880MA->m_TRG_index < 89 + 288)) {
-        active_C12880MA->m_video[active_C12880MA->m_TRG_index-89] = readSample(active_C12880MA->m_VIDEO_pin);
-    }
-
-    if (active_C12880MA->m_TRG_index < 89 + 288) {
-      active_C12880MA->m_TRG_index++;
-    }; // count pulses
-    
-    // if m_TRG_index between start and stop indices, start a new reading by calling startSample()
-    if ((active_C12880MA->m_TRG_index > 89) && (active_C12880MA->m_TRG_index < 89 + 288)) {
-        startSample(active_C12880MA->m_VIDEO_pin);
-    }
-    digitalWrite(0, LOW);
+inline void C12880_Class::_pulse_clock(int cycles){
+  for(int i = 0; i < cycles; i++){
+    digitalWrite(_CLK_pin, HIGH);
+    _ultrashort_delay_100ns();
+    digitalWrite(_CLK_pin, LOW);
+    _ultrashort_delay_100ns(); 
+  }
 }
 
-void C12880MA::read(int16_t video[288]) {
-    interrupts();
-    while (digitalRead(1));
-    digitalWrite(m_START_pin, HIGH);
-    delayMicroseconds(25); // Start pulse high period is 6/f
-    while (digitalRead(1));
-    digitalWrite(m_START_pin, LOW);
+inline void C12880_Class::_pulse_clock_timed(int duration_micros){
+  elapsedMicros sinceStart_micros = 0;
+  while (sinceStart_micros < duration_micros){
+    digitalWrite(_CLK_pin, HIGH);
+    _ultrashort_delay_100ns();
+    digitalWrite(_CLK_pin, LOW);
+    _ultrashort_delay_100ns();
+  }
+}
 
-    m_TRG_index = 0;
-    m_video = video; // save pointer to array so ISR can access it
-    active_C12880MA = this;
-    attachInterrupt(digitalPinToInterrupt(m_TRG_pin), TRG_isr, RISING);
-    while (!digitalRead(m_EOS_pin)); // wait for end of signal
-    detachInterrupt(digitalPinToInterrupt(m_TRG_pin));
+void C12880_Class::begin() {
+  //DUE and ZERO (SAMD21) have 12-bit capability
+  analogReadResolution(12);
+  //Set desired pins to OUTPUT
+  pinMode(_CLK_pin, OUTPUT);
+  pinMode(_ST_pin, OUTPUT);
+  
+  digitalWrite(_CLK_pin, LOW); // Start with CLK High
+  digitalWrite(_ST_pin, LOW);  // Start with ST Low
+  
+  _measure_min_integ_micros();
+}
+
+void C12880_Class::_measure_min_integ_micros() {
+  //48 clock cycles are required after ST goes low
+  elapsedMicros sinceStart_micros = 0;
+  _pulse_clock(48);
+  _min_integ_micros = sinceStart_micros;
+}
+
+void C12880_Class::set_integration_time(float seconds) {
+  _integ_time = max(seconds, 0);
+}
+
+
+void C12880_Class::read_into(uint16_t *buffer) {
+  //compute integration time
+  int duration_micros = (int) (_integ_time*1e6);
+  duration_micros -= _min_integ_micros; //correction based on 48 pulses after ST goes low
+  duration_micros = max(duration_micros,0);
+  // Start clock cycle and set start pulse to signal start
+  digitalWrite(_CLK_pin, HIGH);
+  _ultrashort_delay_100ns();
+  digitalWrite(_CLK_pin, LOW);
+  digitalWrite(_ST_pin, HIGH);
+  _ultrashort_delay_100ns();
+  //pixel integration starts after three clock pulses
+  _pulse_clock(3);
+   _timings[0] = micros();
+  //Integrate pixels for a while
+  //_pulse_clock(_integ_clock_cycles);
+  _pulse_clock_timed(duration_micros);
+  //Set _ST_pin to low
+  digitalWrite(_ST_pin, LOW);
+  _timings[1] = micros();
+  //Sample for a period of time
+  //integration stops at pulse 48 th pulse after ST went low
+  _pulse_clock(48);
+  _timings[2] = micros();
+  //pixel output is ready after last pulse #88 after ST wen low
+  _pulse_clock(40);
+  _timings[3] = micros();
+  //Read from SPEC_VIDEO
+
+  for(int i = 0; i < C12880_NUM_CHANNELS; i++){
+    buffer[i] = analogRead(_VIDEO_pin);
+    _pulse_clock(1);
+  }
+  _timings[4] = micros();
 }
 
