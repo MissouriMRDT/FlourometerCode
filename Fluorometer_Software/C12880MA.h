@@ -1,32 +1,51 @@
-#ifndef C12880MA_H
-#define C12880MA_H
+/*
+  c12880.h - Library for interacting with the Hamamatsu C12880 microspectrometer
+  Created by Craig Wm. Versek, 2017-03-01
+ */
+#ifndef _C12880_H_INCLUDED
+#define _C12880_H_INCLUDED
 
-#include <stdint.h>
-
-#define C12880MA_DATA_START_INDEX 89
-#define C12880MA_DATA_LENGTH 288
-#define C12880MA_DATA_STOP_INDEX (C12880MA_DATA_START_INDEX, C12880MA_DATA_LENGTH)
-
-
-class C12880MA {
-friend void TRG_isr();
-private:
-uint8_t m_CLK_pin;
-uint8_t m_TRG_pin;
-uint16_t m_TRG_index;
-uint8_t m_START_pin;
-uint8_t m_EOS_pin;
-uint8_t m_VIDEO_pin;
-uint8_t m_LED_WHITE_pin;
-int16_t *m_video;
+#include <Arduino.h>
 
 
+#define C12880_NUM_CHANNELS 288
+//uncomment for experimental feature, WARNING creates artifacts above 96MHz system clock
+//#define MICROSPEC_ADC_PIPELINE
+/*******************************************************************************
+  C12880_Class
+  
+*******************************************************************************/
+class C12880_Class{
 public:
-
-C12880MA(uint8_t CLK_pin, uint8_t TRG_pin, uint8_t START_pin, uint8_t EOS_pin, uint8_t VIDEO_pin, uint8_t LED_WHITE_pin);
-
-void init();
-
-void read(int16_t video[288]);
+  C12880_Class(const int TRG_pin,
+                const int ST_pin,
+                const int CLK_pin,
+                const int VIDEO_pin
+               );
+  //Configuration methods
+  void begin();
+  void set_integration_time(float seconds);
+  //Functionality methods
+  void read_into(uint16_t *buffer);
+  unsigned int get_timing(int index){
+    return _timings[index];
+  }
+private:
+  //helper methods
+  inline void _pulse_clock(int cycles);
+  inline void _pulse_clock_timed(int duration_micros);
+  void _measure_min_integ_micros();
+  //Attributes
+  int _TRG_pin;
+  int _ST_pin;
+  int _CLK_pin;
+  int _VIDEO_pin;
+  int _clock_delay_micros;
+  float _integ_time;
+  int _min_integ_micros;
+  unsigned int _timings[10];
 };
-#endif /* C12880MA_H */
+
+
+
+#endif /* _C12880_H_INCLUDED */
