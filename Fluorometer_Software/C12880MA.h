@@ -20,7 +20,7 @@ public:
 
     void init();
 
-    void read(int16_t video[288]);
+    void read(uint8_t video[288]);
 
     void setIntegrationTime(uint32_t time_us);
 };

@@ -104,7 +104,7 @@ C12880MA::C12880MA(uint8_t CLK_pin, uint8_t TRG_pin, uint8_t START_pin, uint8_t 
 };
 
 uint32_t startHighPulses = 6;
-void C12880MA::read(int16_t video[288]) {
+void C12880MA::read(uint8_t video[288]) {
   digitalWrite(m_CLK_pin, HIGH);
   delayMicroseconds(2);
   digitalWrite(m_CLK_pin, LOW);
