@@ -1,13 +1,21 @@
 #include "Fluorometer_Software.h"
 
-uint16_t data[288];
-C12880_Class spec(TRG, START, CLK, VIDEO);
-
 void setup() {
-  Serial.begin(115200);
-  spec.begin();
-}
+    // Serial Debugger
+    Serial.begin(115200);
+    Serial.println("");
+
+    miniSpec.init();
+};
 
 void loop() {
-  spec.read_into(data);
-}
+    int16_t video[288];
+    miniSpec.read(video);
+    for (int i = 0; i < 288; i++) {
+       Serial.print(video[i]);
+       Serial.print(",");
+    }
+    Serial.println("");
+    delay(5000);
+  
+};

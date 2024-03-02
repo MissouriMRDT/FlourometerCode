@@ -4,10 +4,11 @@
 #include "PinAssignments.h"
 #include <stdint.h>
 //#include "RoveComm.h"
-#include "c12880.h"
+#include "C12880MA.h"
 
-C12880_Class MiniSpec(TRG, START, CLK, VIDEO);
-// EthernetServer TCPServer(RC_ROVECOMM_ETHERNET_TCP_PORT);
-// RoveCommEthernet RoveComm;
+C12880MA miniSpec(CLK, TRG, START, EOS, VIDEO, LED_WHITE);
+
+//EthernetServer TCPServer(RC_ROVECOMM_ETHERNET_TCP_PORT);
+//RoveCommEthernet RoveComm;
 
 #endif /* FLUOROMETER_SOFTWARE_H */
